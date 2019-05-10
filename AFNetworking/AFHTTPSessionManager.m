@@ -115,7 +115,7 @@
     [super setSecurityPolicy:securityPolicy];
 }
 
-#pragma mark -
+#pragma mark - 请求方法
 
 - (NSURLSessionDataTask *)GET:(NSString *)URLString
                    parameters:(id)parameters

@@ -43,6 +43,7 @@
 		29E6F1FA1BB9E56500A4466C /* User.m in Sources */ = {isa = PBXBuildFile; fileRef = 29E6F19C1BB9DD7300A4466C /* User.m */; };
 		C2BFE0251C11870800BB258D /* AppDelegate.m in Sources */ = {isa = PBXBuildFile; fileRef = C2BFE0241C11870800BB258D /* AppDelegate.m */; };
 		C2BFE0281C11872D00BB258D /* AppDelegate.m in Sources */ = {isa = PBXBuildFile; fileRef = C2BFE0271C11872D00BB258D /* AppDelegate.m */; };
+		E96BFD912285767A00700134 /* HomeViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = E96BFD902285767A00700134 /* HomeViewController.m */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -157,6 +158,8 @@
 		C2BFE0241C11870800BB258D /* AppDelegate.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = AppDelegate.m; sourceTree = "<group>"; };
 		C2BFE0261C11872D00BB258D /* AppDelegate.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = AppDelegate.h; sourceTree = "<group>"; };
 		C2BFE0271C11872D00BB258D /* AppDelegate.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = AppDelegate.m; sourceTree = "<group>"; };
+		E96BFD8F2285767A00700134 /* HomeViewController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = HomeViewController.h; sourceTree = "<group>"; };
+		E96BFD902285767A00700134 /* HomeViewController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = HomeViewController.m; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -231,6 +234,8 @@
 			children = (
 				291BFE081BB9EB3400FFB029 /* GlobalTimelineViewController.h */,
 				291BFE091BB9EB3400FFB029 /* GlobalTimelineViewController.m */,
+				E96BFD8F2285767A00700134 /* HomeViewController.h */,
+				E96BFD902285767A00700134 /* HomeViewController.m */,
 			);
 			path = Controllers;
 			sourceTree = "<group>";
@@ -640,6 +645,7 @@
 				29E6F17A1BB9DCB500A4466C /* main.m in Sources */,
 				29E6F1A61BB9DD7300A4466C /* AFAppDotNetAPIClient.m in Sources */,
 				C2BFE0281C11872D00BB258D /* AppDelegate.m in Sources */,
+				E96BFD912285767A00700134 /* HomeViewController.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

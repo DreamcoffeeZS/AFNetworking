@@ -24,6 +24,7 @@
 @import AFNetworking;
 
 #import "GlobalTimelineViewController.h"
+#import "HomeViewController.h"
 
 @implementation AppDelegate
 
@@ -34,7 +35,8 @@
     
     [[AFNetworkActivityIndicatorManager sharedManager] setEnabled:YES];
     
-    UITableViewController *viewController = [[GlobalTimelineViewController alloc] initWithStyle:UITableViewStylePlain];
+    //UITableViewController *viewController = [[GlobalTimelineViewController alloc] initWithStyle:UITableViewStylePlain];
+    HomeViewController *viewController = [[HomeViewController alloc] init];
     self.navigationController = [[UINavigationController alloc] initWithRootViewController:viewController];
     self.navigationController.navigationBar.tintColor = [UIColor darkGrayColor];
     

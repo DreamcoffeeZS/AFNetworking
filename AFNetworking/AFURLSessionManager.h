@@ -90,6 +90,8 @@ NS_ASSUME_NONNULL_BEGIN
 
 @interface AFURLSessionManager : NSObject <NSURLSessionDelegate, NSURLSessionTaskDelegate, NSURLSessionDataDelegate, NSURLSessionDownloadDelegate, NSSecureCoding, NSCopying>
 
+#pragma mark - @property
+
 /**
  The managed session.
  */
@@ -178,6 +180,8 @@ NS_ASSUME_NONNULL_BEGIN
  */
 @property (nonatomic, assign) BOOL attemptsToRecreateUploadTasksForBackgroundSessions;
 
+#pragma mark - Initialization
+
 ///---------------------
 /// @name Initialization
 ///---------------------
@@ -206,6 +210,9 @@ NS_ASSUME_NONNULL_BEGIN
  */
 - (void)invalidateSessionCancelingTasks:(BOOL)cancelPendingTasks resetSession:(BOOL)resetSession;
 
+
+#pragma mark - Running Data Tasks
+
 ///-------------------------
 /// @name Running Data Tasks
 ///-------------------------
@@ -231,6 +238,9 @@ NS_ASSUME_NONNULL_BEGIN
                                uploadProgress:(nullable void (^)(NSProgress *uploadProgress))uploadProgressBlock
                              downloadProgress:(nullable void (^)(NSProgress *downloadProgress))downloadProgressBlock
                             completionHandler:(nullable void (^)(NSURLResponse *response, id _Nullable responseObject,  NSError * _Nullable error))completionHandler;
+
+
+#pragma mark - Running Upload Tasks
 
 ///---------------------------
 /// @name Running Upload Tasks
@@ -275,6 +285,8 @@ NS_ASSUME_NONNULL_BEGIN
                                                  progress:(nullable void (^)(NSProgress *uploadProgress))uploadProgressBlock
                                         completionHandler:(nullable void (^)(NSURLResponse *response, id _Nullable responseObject, NSError * _Nullable error))completionHandler;
 
+#pragma mark - Running Download Tasks
+
 ///-----------------------------
 /// @name Running Download Tasks
 ///-----------------------------
@@ -307,6 +319,8 @@ NS_ASSUME_NONNULL_BEGIN
                                              destination:(nullable NSURL * (^)(NSURL *targetPath, NSURLResponse *response))destination
                                        completionHandler:(nullable void (^)(NSURLResponse *response, NSURL * _Nullable filePath, NSError * _Nullable error))completionHandler;
 
+#pragma mark - Getting Progress for Tasks
+
 ///---------------------------------
 /// @name Getting Progress for Tasks
 ///---------------------------------
@@ -329,6 +343,9 @@ NS_ASSUME_NONNULL_BEGIN
  */
 - (nullable NSProgress *)downloadProgressForTask:(NSURLSessionTask *)task;
 
+
+#pragma mark - Setting Session Delegate Callbacks
+
 ///-----------------------------------------
 /// @name Setting Session Delegate Callbacks
 ///-----------------------------------------
@@ -346,6 +363,9 @@ NS_ASSUME_NONNULL_BEGIN
  @param block A block object to be executed when a connection level authentication challenge has occurred. The block returns the disposition of the authentication challenge, and takes three arguments: the session, the authentication challenge, and a pointer to the credential that should be used to resolve the challenge.
  */
 - (void)setSessionDidReceiveAuthenticationChallengeBlock:(nullable NSURLSessionAuthChallengeDisposition (^)(NSURLSession *session, NSURLAuthenticationChallenge *challenge, NSURLCredential * _Nullable __autoreleasing * _Nullable credential))block;
+
+
+#pragma mark - Setting Task Delegate Callbacks
 
 ///--------------------------------------
 /// @name Setting Task Delegate Callbacks
@@ -394,6 +414,10 @@ NS_ASSUME_NONNULL_BEGIN
 #if AF_CAN_INCLUDE_SESSION_TASK_METRICS
 - (void)setTaskDidFinishCollectingMetricsBlock:(nullable void (^)(NSURLSession *session, NSURLSessionTask *task, NSURLSessionTaskMetrics * _Nullable metrics))block;
 #endif
+
+
+#pragma mark - Setting Data Task Delegate Callbacks
+
 ///-------------------------------------------
 /// @name Setting Data Task Delegate Callbacks
 ///-------------------------------------------
@@ -433,6 +457,9 @@ NS_ASSUME_NONNULL_BEGIN
  */
 - (void)setDidFinishEventsForBackgroundURLSessionBlock:(nullable void (^)(NSURLSession *session))block AF_API_UNAVAILABLE(macos);
 
+
+#pragma mark - Setting Download Task Delegate Callbacks
+
 ///-----------------------------------------------
 /// @name Setting Download Task Delegate Callbacks
 ///-----------------------------------------------
@@ -459,6 +486,9 @@ NS_ASSUME_NONNULL_BEGIN
 - (void)setDownloadTaskDidResumeBlock:(nullable void (^)(NSURLSession *session, NSURLSessionDownloadTask *downloadTask, int64_t fileOffset, int64_t expectedTotalBytes))block;
 
 @end
+
+
+#pragma mark -Notifications
 
 ///--------------------
 /// @name Notifications

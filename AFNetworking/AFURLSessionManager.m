@@ -515,25 +515,31 @@ static NSString * const AFNSURLSessionTaskDidSuspendNotification = @"com.alamofi
 
     self.sessionConfiguration = configuration;
 
+    //创建自定义队列，添加到此队列中的操作会自动放到子线程中执行。
     self.operationQueue = [[NSOperationQueue alloc] init];
+    //设置最大并发数是1，即串行队列
     self.operationQueue.maxConcurrentOperationCount = 1;
-
+    //设置响应数据序列化类型
     self.responseSerializer = [AFJSONResponseSerializer serializer];
-
+    //设置安全策略验证SSL，验证证书、公钥、或者不验证
     self.securityPolicy = [AFSecurityPolicy defaultPolicy];
 
 #if !TARGET_OS_WATCH
+    //设置网络监控
     self.reachabilityManager = [AFNetworkReachabilityManager sharedManager];
 #endif
 
     self.mutableTaskDelegatesKeyedByTaskIdentifier = [[NSMutableDictionary alloc] init];
 
+    //创建对象锁，用于处理mutableTaskDelegatesKeyedByTaskIdentifier
     self.lock = [[NSLock alloc] init];
     self.lock.name = AFURLSessionManagerLockName;
 
     __weak typeof(self) weakSelf = self;
+    //以懒加载的方式创建了NSURLSession
     [self.session getTasksWithCompletionHandler:^(NSArray *dataTasks, NSArray *uploadTasks, NSArray *downloadTasks) {
-        
+        //getTasksWithCompletionHandler:方法，获取session中所有未完成的upload, download, data tasks
+        //置空处理，清理所有的任务，确保启动时之前后台未完成的请求任务，可能会导致程序的crash
         __strong typeof(weakSelf) strongSelf = weakSelf;
         for (NSURLSessionDataTask *task in dataTasks) {
             [strongSelf addDelegateForDataTask:task uploadProgress:nil downloadProgress:nil completionHandler:nil];
