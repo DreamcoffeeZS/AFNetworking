@@ -52,6 +52,21 @@ NSString * const kUserProfileImageDidLoadNotification = @"com.alamofire.user.pro
     return self;
 }
 
+- (instancetype)initWithName:(NSString *)userName {
+    self = [super init];
+    if (!self) {
+        return nil;
+    }
+    
+    self.userID = 1123123;
+    self.username = userName;
+    self.avatarImageURLString = @"";
+    
+    return self;
+    
+}
+
+
 - (NSURL *)avatarImageURL {
     return [NSURL URLWithString:self.avatarImageURLString];
 }
