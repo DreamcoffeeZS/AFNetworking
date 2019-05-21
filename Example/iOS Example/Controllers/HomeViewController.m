@@ -12,6 +12,7 @@
 @interface HomeViewController ()
 
 @property (nonatomic, strong) UIButton *button;
+
 @end
 
 @implementation HomeViewController
@@ -26,17 +27,25 @@
 
 
 
-
-
 #pragma mark - Respond To Events
 - (void)onBtnClick:(UIButton *)btn {
+    [self requestData1];
+//    [self requestData2];
+ }
+
+
+- (void)requestData1 {
     NSURLSessionConfiguration *configuration = [NSURLSessionConfiguration defaultSessionConfiguration];
     AFURLSessionManager *manager = [[AFURLSessionManager alloc] initWithSessionConfiguration:configuration];
     
-    NSURL *URL = [NSURL URLWithString:@"https://www.apiopen.top/journalismApi"];
+    NSURL *URL = [NSURL URLWithString:@"https://api.apiopen.top/getTangPoetry?page=1&count=20"];
     NSURLRequest *request = [NSURLRequest requestWithURL:URL];
     
-    NSURLSessionDataTask *dataTask = [manager dataTaskWithRequest:request completionHandler:^(NSURLResponse *response, id responseObject, NSError *error) {
+    NSURLSessionDataTask *dataTask = [manager dataTaskWithRequest:request uploadProgress:^(NSProgress * _Nonnull uploadProgress) {
+        //
+    } downloadProgress:^(NSProgress * _Nonnull downloadProgress) {
+        //
+    } completionHandler:^(NSURLResponse * _Nonnull response, id  _Nullable responseObject, NSError * _Nullable error) {
         if (error) {
             NSLog(@"Error: %@", error);
         } else {
@@ -44,7 +53,19 @@
         }
     }];
     [dataTask resume];
-    
+}
+
+
+- (void)requestData2 {
+    AFHTTPSessionManager *manager = [[AFHTTPSessionManager alloc] init];
+    NSString *urlString = @"https://api.apiopen.top/getTangPoetry?page=1&count=20";
+    [manager GET:urlString parameters:nil headers:nil progress:^(NSProgress * _Nonnull downloadProgress) {
+        //
+    } success:^(NSURLSessionDataTask * _Nonnull task, id  _Nullable responseObject) {
+        NSLog(@"ResponseObject：%@", responseObject);
+    } failure:^(NSURLSessionDataTask * _Nullable task, NSError * _Nonnull error) {
+        NSLog(@"Error: %@", error);
+    }];
  }
 
 

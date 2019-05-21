@@ -89,6 +89,8 @@ NSString * AFPercentEscapedStringFromString(NSString *string) {
 
 @implementation AFQueryStringPair
 
+#pragma mark - Life Cycle
+
 - (instancetype)initWithField:(id)field value:(id)value {
     self = [super init];
     if (!self) {
@@ -366,13 +368,14 @@ forHTTPHeaderField:(NSString *)field
 
     NSMutableURLRequest *mutableRequest = [[NSMutableURLRequest alloc] initWithURL:url];
     mutableRequest.HTTPMethod = method;
-
+    //增加NSMutableURLRequest的参数设置
     for (NSString *keyPath in AFHTTPRequestSerializerObservedKeyPaths()) {
         if ([self.mutableObservedChangedKeyPaths containsObject:keyPath]) {
             [mutableRequest setValue:[self valueForKeyPath:keyPath] forKey:keyPath];
         }
     }
 
+    //将传入的parameters进行编码，并添加到request中
     mutableRequest = [[self requestBySerializingRequest:mutableRequest withParameters:parameters error:error] mutableCopy];
 
 	return mutableRequest;

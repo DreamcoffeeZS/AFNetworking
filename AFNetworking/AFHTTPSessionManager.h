@@ -134,6 +134,8 @@ NS_ASSUME_NONNULL_BEGIN
 - (instancetype)initWithBaseURL:(nullable NSURL *)url
            sessionConfiguration:(nullable NSURLSessionConfiguration *)configuration NS_DESIGNATED_INITIALIZER;
 
+#pragma mark - Making HTTP Requests
+
 ///---------------------------
 /// @name Making HTTP Requests
 ///---------------------------

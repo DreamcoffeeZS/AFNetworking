@@ -44,6 +44,7 @@
 		C2BFE0251C11870800BB258D /* AppDelegate.m in Sources */ = {isa = PBXBuildFile; fileRef = C2BFE0241C11870800BB258D /* AppDelegate.m */; };
 		C2BFE0281C11872D00BB258D /* AppDelegate.m in Sources */ = {isa = PBXBuildFile; fileRef = C2BFE0271C11872D00BB258D /* AppDelegate.m */; };
 		E96BFD912285767A00700134 /* HomeViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = E96BFD902285767A00700134 /* HomeViewController.m */; };
+		E9DE8DDC229258450000C93E /* HomeViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = E96BFD902285767A00700134 /* HomeViewController.m */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -621,6 +622,7 @@
 				291BFDFE1BB9E8E900FFB029 /* User.m in Sources */,
 				291BFDFD1BB9E8E500FFB029 /* Post.m in Sources */,
 				291BFDEE1BB9E8C700FFB029 /* main.m in Sources */,
+				E9DE8DDC229258450000C93E /* HomeViewController.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
