@@ -354,7 +354,8 @@
     //1.创建NSMutableURLRequest实例
     NSMutableURLRequest *request = [self.requestSerializer requestWithMethod:method
                                                                    URLString:[[NSURL URLWithString:URLString relativeToURL:self.baseURL] absoluteString] parameters:parameters error:&serializationError];
-    //2.添加HTTP头字段
+    
+    //2.添加HTTP头字段User-Agent：浏览器类型(User-Agennt)、主机名(Host)等
     for (NSString *headerField in headers.keyEnumerator) {
         [request addValue:headers[headerField] forHTTPHeaderField:headerField];
     }

@@ -530,14 +530,14 @@ static NSString * const AFNSURLSessionTaskDidSuspendNotification = @"com.alamofi
     //5.设置网络监控
     self.reachabilityManager = [AFNetworkReachabilityManager sharedManager];
 #endif
-    //6.ZS创建可变字典，用于存放task与AFURLSessionManagerTaskDelegate的对应关系;
+    //6.创建可变字典，用于存放task与AFURLSessionManagerTaskDelegate的对应关系;
     //其实AF对Task代理进行了封装,并将将其转发给AF自定义的代理；
     self.mutableTaskDelegatesKeyedByTaskIdentifier = [[NSMutableDictionary alloc] init];
     //创建对象锁，用于处理mutableTaskDelegatesKeyedByTaskIdentifier
     self.lock = [[NSLock alloc] init];
     self.lock.name = AFURLSessionManagerLockName;
 
-    //7.以懒加载的方式创建了NSURLSession，并且指控了task关联的代理
+    //7.以懒加载的方式创建了NSURLSession，并且置空了task关联的代理
     __weak typeof(self) weakSelf = self;
     [self.session getTasksWithCompletionHandler:^(NSArray *dataTasks, NSArray *uploadTasks, NSArray *downloadTasks) {
         //getTasksWithCompletionHandler:方法，获取当前session中所有未完成的upload, download, data tasks

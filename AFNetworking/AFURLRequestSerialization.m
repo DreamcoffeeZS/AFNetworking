@@ -242,7 +242,9 @@ static void *AFHTTPRequestSerializerObserverContext = &AFHTTPRequestSerializerOb
     // HTTP Method Definitions; see http://www.w3.org/Protocols/rfc2616/rfc2616-sec9.html
     self.HTTPMethodsEncodingParametersInURI = [NSSet setWithObjects:@"GET", @"HEAD", @"DELETE", nil];
 
+    //每次都会重置变化
     self.mutableObservedChangedKeyPaths = [NSMutableSet set];
+    //初始化时，给自己的这些方法添加观察者为自己，也就是request的各种属性
     for (NSString *keyPath in AFHTTPRequestSerializerObservedKeyPaths()) {
         if ([self respondsToSelector:NSSelectorFromString(keyPath)]) {
             [self addObserver:self forKeyPath:keyPath options:NSKeyValueObservingOptionNew context:AFHTTPRequestSerializerObserverContext];
@@ -367,8 +369,20 @@ forHTTPHeaderField:(NSString *)field
     NSParameterAssert(url);
 
     NSMutableURLRequest *mutableRequest = [[NSMutableURLRequest alloc] initWithURL:url];
+    //设置请求类型
     mutableRequest.HTTPMethod = method;
-    //增加NSMutableURLRequest的参数设置
+    
+    
+    /*增加NSMutableURLRequest的参数设置
+     1.AFHTTPRequestSerializerObservedKeyPaths()是一个c函数，
+     返回一个数组,其中的元素都是NSURLRequest属性名构成方法名；
+     
+     2.self.mutableObservedChangedKeyPaths是当前类的一个属性，在init方法中被初始化；
+
+     3.self.mutableObservedChangedKeyPaths其实就是我们自己设置的request属性值的集合
+    
+     4.最后通过KVC的方式，将属性值设置到request中去
+    */
     for (NSString *keyPath in AFHTTPRequestSerializerObservedKeyPaths()) {
         if ([self.mutableObservedChangedKeyPaths containsObject:keyPath]) {
             [mutableRequest setValue:[self valueForKeyPath:keyPath] forKey:keyPath];
@@ -481,7 +495,8 @@ forHTTPHeaderField:(NSString *)field
     NSParameterAssert(request);
 
     NSMutableURLRequest *mutableRequest = [request mutableCopy];
-
+    
+    //从自己的headers中遍历，如果有值就设置给request的head
     [self.HTTPRequestHeaders enumerateKeysAndObjectsUsingBlock:^(id field, id value, BOOL * __unused stop) {
         if (![request valueForHTTPHeaderField:field]) {
             [mutableRequest setValue:value forHTTPHeaderField:field];
