@@ -530,8 +530,8 @@ static NSString * const AFNSURLSessionTaskDidSuspendNotification = @"com.alamofi
     //5.设置网络监控
     self.reachabilityManager = [AFNetworkReachabilityManager sharedManager];
 #endif
-    //6.创建可变字典，用于存放task与AFURLSessionManagerTaskDelegate的对应关系;
-    //其实AF对Task代理进行了封装,并将将其转发给AF自定义的代理；
+    //6.创建可变字典，用于存放task与我们自定义的AF代理的对应关系;
+    //其实AF对Task代理进行了一个封装,并且转发代理到AF自定义的代理；
     self.mutableTaskDelegatesKeyedByTaskIdentifier = [[NSMutableDictionary alloc] init];
     //创建对象锁，用于处理mutableTaskDelegatesKeyedByTaskIdentifier
     self.lock = [[NSLock alloc] init];

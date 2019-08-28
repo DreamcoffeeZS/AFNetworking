@@ -361,6 +361,7 @@ forHTTPHeaderField:(NSString *)field
                                 parameters:(id)parameters
                                      error:(NSError *__autoreleasing *)error
 {
+    //断言，Debug模式下，如果缺少参数，Crash
     NSParameterAssert(method);
     NSParameterAssert(URLString);
 
