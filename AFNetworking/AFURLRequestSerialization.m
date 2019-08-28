@@ -120,6 +120,10 @@ FOUNDATION_EXPORT NSArray * AFQueryStringPairsFromKeyAndValue(NSString *key, id 
 
 NSString * AFQueryStringFromParameters(NSDictionary *parameters) {
     NSMutableArray *mutablePairs = [NSMutableArray array];
+      /*把参数给AFQueryStringPairsFromDictionary，可以得到一个数组(key-value元素的对象;
+       然后通过URLEncodedStringValue拼接keyValue；
+       最后添加到mutablePairs中，转化为参数字符串；
+       */
     for (AFQueryStringPair *pair in AFQueryStringPairsFromDictionary(parameters)) {
         [mutablePairs addObject:[pair URLEncodedStringValue]];
     }
@@ -134,8 +138,12 @@ NSArray * AFQueryStringPairsFromDictionary(NSDictionary *dictionary) {
 NSArray * AFQueryStringPairsFromKeyAndValue(NSString *key, id value) {
     NSMutableArray *mutableQueryStringComponents = [NSMutableArray array];
 
+    // 根据需要排列的对象的description来进行升序排列，并且selector使用的是compare:
+    // 因为对象的description返回的是NSString，所以此处compare:使用的是NSString的compare函数
+    // 即@[@"foo", @"bar", @"bae"] ----> @[@"bae", @"bar",@"foo"]
     NSSortDescriptor *sortDescriptor = [NSSortDescriptor sortDescriptorWithKey:@"description" ascending:YES selector:@selector(compare:)];
 
+    //判断vaLue是什么类型的，然后去递归调用自己，直到解析的是除了array dic set以外的元素，然后把得到的参数数组返回。
     if ([value isKindOfClass:[NSDictionary class]]) {
         NSDictionary *dictionary = value;
         // Sort dictionary keys to ensure consistent ordering in query string, which is important when deserializing potentially ambiguous sequences, such as an array of dictionaries
@@ -161,6 +169,26 @@ NSArray * AFQueryStringPairsFromKeyAndValue(NSString *key, id value) {
 
     return mutableQueryStringComponents;
 }
+/*
+ @{
+ @"name" : @"bang",
+ @"phone": @{@"mobile": @"xx", @"home": @"xx"},
+ @"families": @[@"father", @"mother"],
+ @"nums": [NSSet setWithObjects:@"1", @"2", nil]
+ }
+ ->
+ @[
+ field: @"name", value: @"bang",
+ field: @"phone[mobile]", value: @"xx",
+ field: @"phone[home]", value: @"xx",
+ field: @"families[]", value: @"father",
+ field: @"families[]", value: @"mother",
+ field: @"nums", value: @"1",
+ field: @"nums", value: @"2",
+ ]
+ ->
+ name=bang&phone[mobile]=xx&phone[home]=xx&families[]=father&families[]=mother&nums=1&num=2
+ */
 
 #pragma mark -
 
@@ -496,15 +524,17 @@ forHTTPHeaderField:(NSString *)field
 
     NSMutableURLRequest *mutableRequest = [request mutableCopy];
     
-    //从自己的headers中遍历，如果有值就设置给request的head
+    //1.从自己的headers中遍历，如果有值就设置给request的head
     [self.HTTPRequestHeaders enumerateKeysAndObjectsUsingBlock:^(id field, id value, BOOL * __unused stop) {
         if (![request valueForHTTPHeaderField:field]) {
             [mutableRequest setValue:value forHTTPHeaderField:field];
         }
     }];
 
+    //2.来把各种类型的参数，array dic set转化成字符串，给request
     NSString *query = nil;
     if (parameters) {
+        //自定义的解析方式
         if (self.queryStringSerialization) {
             NSError *serializationError;
             query = self.queryStringSerialization(request, parameters, &serializationError);
@@ -517,6 +547,7 @@ forHTTPHeaderField:(NSString *)field
                 return nil;
             }
         } else {
+            //默认解析方式
             switch (self.queryStringSerializationStyle) {
                 case AFHTTPRequestQueryStringDefaultStyle:
                     query = AFQueryStringFromParameters(parameters);
@@ -524,7 +555,9 @@ forHTTPHeaderField:(NSString *)field
             }
         }
     }
-
+    //AF的HTTPMethodsEncodingParametersInURI默认只包含GET、HEAD、DELETE；
+    //即这三种Method的quey是拼接到url后面的；而POST、PUT是把query拼接到HTTP的body中的；
+    //所以使用POST方法，服务端JSP通过request.getParameter()获取不到参数；
     if ([self.HTTPMethodsEncodingParametersInURI containsObject:[[request HTTPMethod] uppercaseString]]) {
         if (query && query.length > 0) {
             mutableRequest.URL = [NSURL URLWithString:[[mutableRequest.URL absoluteString] stringByAppendingFormat:mutableRequest.URL.query ? @"&%@" : @"?%@", query]];
@@ -537,6 +570,7 @@ forHTTPHeaderField:(NSString *)field
         if (![mutableRequest valueForHTTPHeaderField:@"Content-Type"]) {
             [mutableRequest setValue:@"application/x-www-form-urlencoded" forHTTPHeaderField:@"Content-Type"];
         }
+        //设置请求体
         [mutableRequest setHTTPBody:[query dataUsingEncoding:self.stringEncoding]];
     }
 
