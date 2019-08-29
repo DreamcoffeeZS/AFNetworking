@@ -362,9 +362,18 @@
     //3.如果解析错误，直接使用呢failture执行回调操作
     if (serializationError) {
         if (failure) {
+            /*
+            当解析错误，我们直接调用传进来的fauler的Block失败返回了，
+            这里有一个self.completionQueue,这个是我们自定义的，
+            这个是一个GCD的Queue如果设置了那么从这个Queue中回调结果，否则从主队列回调
+            */
             dispatch_async(self.completionQueue ?: dispatch_get_main_queue(), ^{
                 failure(nil, serializationError);
             });
+            /*
+            注意： 如果回调回来的数据并不想是主线程；
+            我们可以设置这个Queue,在子线程进行解析数据，然后自己再调回到主线程去刷新UI
+            */
         }
 
         return nil;

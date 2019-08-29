@@ -29,7 +29,7 @@
 
 #pragma mark - Respond To Events
 - (void)onBtnClick:(UIButton *)btn {
-    [self requestData1];
+    [self requestData2];
 //    [self requestData2];
  }
 
@@ -59,7 +59,12 @@
 - (void)requestData2 {
     AFHTTPSessionManager *manager = [[AFHTTPSessionManager alloc] init];
     NSString *urlString = @"https://api.apiopen.top/getTangPoetry?page=1&count=20";
-    [manager GET:urlString parameters:nil headers:nil progress:^(NSProgress * _Nonnull downloadProgress) {
+    NSDictionary *params = @{@"name" : @"bang",
+                             @"phone": @{@"mobile": @"xx", @"home": @"xx"},
+                             @"families": @[@"father", @"mother"],
+                             @"nums": [NSSet setWithObjects:@"1", @"2", nil]
+                             };
+    [manager GET:urlString parameters:params headers:nil progress:^(NSProgress * _Nonnull downloadProgress) {
         //
     } success:^(NSURLSessionDataTask * _Nonnull task, id  _Nullable responseObject) {
         NSLog(@"ResponseObject：%@", responseObject);

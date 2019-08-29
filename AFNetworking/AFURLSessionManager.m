@@ -32,6 +32,7 @@ static dispatch_queue_t url_session_manager_creation_queue() {
     static dispatch_queue_t af_url_session_manager_creation_queue;
     static dispatch_once_t onceToken;
     dispatch_once(&onceToken, ^{
+        //保证了即使是在多线程的环境下，也不会创建其他队列
         af_url_session_manager_creation_queue = dispatch_queue_create("com.alamofire.networking.session.manager.creation", DISPATCH_QUEUE_SERIAL);
     });
 
@@ -44,6 +45,13 @@ static void url_session_manager_create_task_safely(dispatch_block_t _Nonnull blo
             // Fix of bug
             // Open Radar:http://openradar.appspot.com/radar?id=5871104061079552 (status: Fixed in iOS8)
             // Issue about:https://github.com/AFNetworking/AFNetworking/issues/2093
+            
+            /*理解：1.为什么用sync?
+            因为是想要主线程等在这，等执行完，在返回，因为必须执行完dataTask才有数据，传值才有意义。
+            理解2：为什么要用串行队列？
+            因为这块是为了防止ios8以下内部的dataTaskWithRequest是并发创建的，
+            这样会导致taskIdentifiers这个属性值不唯一，因为后续要用taskIdentifiers来作为Key对应delegate。
+            */
             dispatch_sync(url_session_manager_creation_queue(), block);
         } else {
             block();
@@ -623,9 +631,15 @@ static NSString * const AFNSURLSessionTaskDidSuspendNotification = @"com.alamofi
 {
     NSParameterAssert(task);
     NSParameterAssert(delegate);
-
+    
+    //加锁保证字典线程安全
     [self.lock lock];
+    
+    //将AF的delegate放入以taskIdentifier标记的词典中（同一个NSURLSession中的taskIdentifier是唯一的）
+    //
     self.mutableTaskDelegatesKeyedByTaskIdentifier[@(task.taskIdentifier)] = delegate;
+    
+    //添加task开始和暂停的通知
     [self addNotificationObserverForTask:task];
     [self.lock unlock];
 }
@@ -635,11 +649,14 @@ static NSString * const AFNSURLSessionTaskDidSuspendNotification = @"com.alamofi
               downloadProgress:(nullable void (^)(NSProgress *downloadProgress)) downloadProgressBlock
              completionHandler:(void (^)(NSURLResponse *response, id responseObject, NSError *error))completionHandler
 {
+    //这里为新的请求任务，自定义了AF的代理，我们请求回来的参数都赋值给这个AF的代理了
     AFURLSessionManagerTaskDelegate *delegate = [[AFURLSessionManagerTaskDelegate alloc] initWithTask:dataTask];
     delegate.manager = self;
     delegate.completionHandler = completionHandler;
 
     dataTask.taskDescription = self.taskDescriptionForSessionTasks;
+    
+    //将AF自定义代理与task建议映射关系，存在之前创建的字典里；
     [self setDelegate:delegate forTask:dataTask];
 
     delegate.uploadProgressBlock = uploadProgressBlock;
@@ -782,6 +799,8 @@ static NSString * const AFNSURLSessionTaskDidSuspendNotification = @"com.alamofi
                             completionHandler:(nullable void (^)(NSURLResponse *response, id _Nullable responseObject,  NSError * _Nullable error))completionHandler {
 
     __block NSURLSessionDataTask *dataTask = nil;
+    //1.创建NSURLSessionDataTask，里面适配了iOs8以下taskIdentifiers，函数创建task对象。
+    //其实现应该是因为iOS 8.0以下版本中会并发地创建多个task对象，而同步有没有做好，导致taskIdentifiers 不唯一…这边做了一个串行处理
     url_session_manager_create_task_safely(^{
         dataTask = [self.session dataTaskWithRequest:request];
     });
@@ -972,6 +991,7 @@ static NSString * const AFNSURLSessionTaskDidSuspendNotification = @"com.alamofi
 }
 
 - (BOOL)respondsToSelector:(SEL)selector {
+    //复写了selector的方法，这几个方法是在本类有实现的，但是如果外面的Block没赋值的话，则返回NO，相当于没有实现！
     if (selector == @selector(URLSession:task:willPerformHTTPRedirection:newRequest:completionHandler:)) {
         return self.taskWillPerformHTTPRedirection != nil;
     } else if (selector == @selector(URLSession:dataTask:didReceiveResponse:completionHandler:)) {
