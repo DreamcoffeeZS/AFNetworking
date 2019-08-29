@@ -17,7 +17,6 @@
 
 @implementation HomeViewController
 
-
 #pragma mark - Life Cycle
 - (void)viewDidLoad {
     [super viewDidLoad];
@@ -29,12 +28,12 @@
 
 #pragma mark - Respond To Events
 - (void)onBtnClick:(UIButton *)btn {
-    [self requestData2];
-//    [self requestData2];
+    //[[self requestWithSystemMethod];
+    [self requestWithAFMethod];
  }
 
 
-- (void)requestData1 {
+- (void)requestWithSystemMethod {
     NSURLSessionConfiguration *configuration = [NSURLSessionConfiguration defaultSessionConfiguration];
     AFURLSessionManager *manager = [[AFURLSessionManager alloc] initWithSessionConfiguration:configuration];
     
@@ -56,7 +55,7 @@
 }
 
 
-- (void)requestData2 {
+- (void)requestWithAFMethod {
     AFHTTPSessionManager *manager = [[AFHTTPSessionManager alloc] init];
     NSString *urlString = @"https://api.apiopen.top/getTangPoetry?page=1&count=20";
     NSDictionary *params = @{@"name" : @"bang",
@@ -74,7 +73,8 @@
  }
 
 
-#pragma mark - Getter && Setter
+#pragma mark - Setter Method
+
 - (UIButton *)button{
     if(_button == nil){
         CGFloat buttonWidth = CGRectGetWidth(self.view.frame) - 30 * 2;
