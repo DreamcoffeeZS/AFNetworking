@@ -1025,11 +1025,17 @@ static NSString * const AFNSURLSessionTaskDidSuspendNotification = @"com.alamofi
     return [[self class] instancesRespondToSelector:selector];
 }
 
-#pragma mark - 实现系统网络请求的代理：NSURLSessionDelegate
-/*
-didBecomeInvalidWithError
-didReceiveChallenge
-*/
+#pragma mark - 实现系统网络请求的代理
+
+#pragma mark 代理-NSURLSessionDelegate
+/**
+ 当这个Session已经失效时，该代理方法被调用；
+ 
+ 如果你使用finishTasksAndInvalidate函数使该session失效，
+ 那么session首先会先完成最后一个task，然后再调用URLSession:didBecomeInvalidWithError:代理方法，
+ 如果你调用invalidateAndCancel方法来使session失效，那么该session会立即调用上面的代理方法。
+ 
+ */
 - (void)URLSession:(NSURLSession *)session
 didBecomeInvalidWithError:(NSError *)error
 {
@@ -1041,7 +1047,26 @@ didBecomeInvalidWithError:(NSError *)error
 }
 
 
-//HTTPS认证
+/**
+ HTTPS认证
+ 调用的时机：
+ 1.服务器要求客户端提供证书或者NTLM认证；
+ 2.Session使用SSL/TLS协议，首次与服务器端建立连接，服务器端发给客户端证书；
+ 此方法允许你的App验证服务器端的证书链(certificate keychain);
+ 
+ 处理过程：
+ 1.Web服务器收到客户端请求时，需要验证客户端是否为正常用户，再决定能够返回真实的数据；
+ 即客户端接收到服务器的challenge。
+ 2.客户端根据接收的challenge来生成completionHandler所需的disposition(对应challenge的方法)和crential(证书)
+ 3.只有challenge中认证方法为NSURLAuthenticationMethodServerTrust的时候，才需要生成挑战证书;
+ 4.最后调用completionHandler回应服务器端的challenge;
+ 
+
+ 注：如果你没有实现该方法，该session会调用其NSURLSessionTaskDelegate的代理方法
+ URLSession:task:didReceiveChallenge:completionHandler:；
+ 该session会调用其NSURLSessionTaskDelegate的代理方法URLSession:task:didReceiveChallenge:completionHandler:
+ 
+ */
 - (void)URLSession:(NSURLSession *)session
 didReceiveChallenge:(NSURLAuthenticationChallenge *)challenge
  completionHandler:(void (^)(NSURLSessionAuthChallengeDisposition disposition, NSURLCredential *credential))completionHandler
@@ -1084,8 +1109,10 @@ didReceiveChallenge:(NSURLAuthenticationChallenge *)challenge
     }
 }
 
-#pragma mark  NSURLSessionTaskDelegate
-//该方法被服务器重定向的时候调用
+#pragma mark 代理-NSURLSessionTaskDelegate
+/**
+ 该方法被服务器重定向的时候调用
+ */
 - (void)URLSession:(NSURLSession *)session
               task:(NSURLSessionTask *)task
 willPerformHTTPRedirection:(NSHTTPURLResponse *)response
@@ -1105,6 +1132,16 @@ willPerformHTTPRedirection:(NSHTTPURLResponse *)response
     }
 }
 
+
+/**
+ HTTPS认证
+ 和NSURLSessionDelegate里的认证方法，功能一样，执行的内容也完全一样。
+ 
+ 区别在于这个是non-session-level级别的认证，而之前的是session-level级别的。
+ 相对之前的方法，这里多了一个参数task,然后调用我们自定义的Block会多回传这个task作为参数，
+ 这样我们就可以根据每个task去自定义我们需要的https认证方式。
+ 
+ */
 - (void)URLSession:(NSURLSession *)session
               task:(NSURLSessionTask *)task
 didReceiveChallenge:(NSURLAuthenticationChallenge *)challenge
@@ -1133,6 +1170,13 @@ didReceiveChallenge:(NSURLAuthenticationChallenge *)challenge
     }
 }
 
+/**
+ 当一个session task需要发送一个新的request body stream到服务器端的时候，调用该代理方法。
+
+ 调用时机：
+ 如果task是由uploadTaskWithStreamedRequest:创建的，那么提供初始的request body stream时候会调用该代理方法。
+ 因为认证挑战或者其他可恢复的服务器错误，而导致需要客户端重新发送一个含有body stream的request，这时候会调用该代理。
+ */
 - (void)URLSession:(NSURLSession *)session
               task:(NSURLSessionTask *)task
  needNewBodyStream:(void (^)(NSInputStream *bodyStream))completionHandler
@@ -1150,13 +1194,17 @@ didReceiveChallenge:(NSURLAuthenticationChallenge *)challenge
     }
 }
 
+
+/*
+ 周期性地通知代理发送到服务器端数据的进度。
+ */
 - (void)URLSession:(NSURLSession *)session
               task:(NSURLSessionTask *)task
    didSendBodyData:(int64_t)bytesSent
     totalBytesSent:(int64_t)totalBytesSent
 totalBytesExpectedToSend:(int64_t)totalBytesExpectedToSend
 {
-
+    // 如果totalUnitCount获取失败，就使用HTTP header中的Content-Length作为totalUnitCount
     int64_t totalUnitCount = totalBytesExpectedToSend;
     if (totalUnitCount == NSURLSessionTransferSizeUnknown) {
         NSString *contentLength = [task.originalRequest valueForHTTPHeaderField:@"Content-Length"];
@@ -1176,19 +1224,27 @@ totalBytesExpectedToSend:(int64_t)totalBytesExpectedToSend
     }
 }
 
+/*
+ task完成之后的回调，成功和失败都会回调这里
+ 函数讨论：
+ 注意这里的error不会报告服务期端的error，他表示的是客户端这边的eroor，比如无法解析hostname或者连不上host主机。
+ */
 - (void)URLSession:(NSURLSession *)session
               task:(NSURLSessionTask *)task
 didCompleteWithError:(NSError *)error
 {
+    //根据task去取我们一开始创建绑定的delegate
     AFURLSessionManagerTaskDelegate *delegate = [self delegateForTask:task];
 
     // delegate may be nil when completing a task in the background
     if (delegate) {
+        //把代理转发给我们绑定的delegate
         [delegate URLSession:session task:task didCompleteWithError:error];
-
+        //转发完移除delegate
         [self removeDelegateForTask:task];
     }
 
+    //自定义Block回调
     if (self.taskDidComplete) {
         self.taskDidComplete(session, task, error);
     }
@@ -1211,13 +1267,31 @@ didFinishCollectingMetrics:(NSURLSessionTaskMetrics *)metrics
 }
 #endif
 
-#pragma mark  NSURLSessionDataDelegate
+#pragma mark 代理-NSURLSessionDataDelegate
+/**
+ 函数作用：
+ 收到服务器响应后调用，告诉代理，该data task获取到了服务器端传回的最初始回复（response);
+ 注意其中的completionHandler这个block，通过传入一个类型为NSURLSessionResponseDisposition的变量来决定该传输任务接下来该做什么：
+ NSURLSessionResponseAllow 该task正常进行
+ NSURLSessionResponseCancel 该task会被取消
+ NSURLSessionResponseBecomeDownload 会调用URLSession:dataTask:didBecomeDownloadTask:方法来新建一个download task以代替当前的data task
+ NSURLSessionResponseBecomeStream  转成一个StreamTask
+ 
 
+ 该方法是可选的，除非你必须支持“multipart/x-mixed-replace”类型的content-type。
+ 因为如果你的request中包含了这种类型的content-type，服务器会将数据分片传回来，
+ 而且每次传回来的数据会覆盖之前的数据。每次返回新的数据时，session都会调用该函数，
+ 你应该在这个函数中合理地处理先前的数据，否则会被新数据覆盖。如果你没有提供该方法的实现，
+ 那么session将会继续任务，也就是说会覆盖之前的数据。
+ 
+ 如果我们实现了自定义Block，则调用一下，不然就用默认的NSURLSessionResponseAllow方式;
+*/
 - (void)URLSession:(NSURLSession *)session
           dataTask:(NSURLSessionDataTask *)dataTask
 didReceiveResponse:(NSURLResponse *)response
  completionHandler:(void (^)(NSURLSessionResponseDisposition disposition))completionHandler
 {
+    //设置默认为继续进行
     NSURLSessionResponseDisposition disposition = NSURLSessionResponseAllow;
 
     if (self.dataTaskDidReceiveResponse) {
@@ -1229,10 +1303,26 @@ didReceiveResponse:(NSURLResponse *)response
     }
 }
 
+
+/**
+ 函数作用：
+ 上面的代理如果设置为NSURLSessionResponseBecomeDownload，则会调用这个方法;
+ 
+ 这个代理方法是被上面的代理方法触发的，作用就是新建一个downloadTask，替换掉当前的dataTask。所以我们在这里做了AF自定义代理的重新绑定操作。
+ 调用自定义Block。
+ 
+ 按照顺序来，其实还有个AF没有去实现的代理：
+ - (void)URLSession:(NSURLSession *)session dataTask:(NSURLSessionDataTask *)dataTask
+ didBecomeStreamTask:(NSURLSessionStreamTask *)streamTask;
+ 
+ 这个也是之前的那个代理，设置为NSURLSessionResponseBecomeStream则会调用到这个代理里来。会新生成一个NSURLSessionStreamTask来替换掉之前的dataTask。
+ 
+ */
 - (void)URLSession:(NSURLSession *)session
           dataTask:(NSURLSessionDataTask *)dataTask
 didBecomeDownloadTask:(NSURLSessionDownloadTask *)downloadTask
 {
+    //因为转变了task，所以要对task做一个重新绑定
     AFURLSessionManagerTaskDelegate *delegate = [self delegateForTask:dataTask];
     if (delegate) {
         [self removeDelegateForTask:dataTask];
@@ -1244,6 +1334,15 @@ didBecomeDownloadTask:(NSURLSessionDownloadTask *)downloadTask
     }
 }
 
+
+/**
+ 函数作用：
+ 当我们获取到数据就会调用，会被反复调用，请求到的数据就在这被拼装完整;
+ 
+ 这个方法和上面didCompleteWithError算是NSUrlSession的代理中最重要的两个方法了。
+ 我们转发了这个方法到AF的代理中去，所以数据的拼接都是在AF的代理中进行的。
+ 这也是情理中的，毕竟每个响应数据都是对应各个task，各个AF代理的。在AFURLSessionManager都只是做一些公共的处理。
+ */
 - (void)URLSession:(NSURLSession *)session
           dataTask:(NSURLSessionDataTask *)dataTask
     didReceiveData:(NSData *)data
@@ -1257,6 +1356,25 @@ didBecomeDownloadTask:(NSURLSessionDownloadTask *)downloadTask
     }
 }
 
+
+/**
+ 函数作用：
+ 当task接收到所有期望的数据后，session会调用此代理方法。
+ 询问data task或上传任务（upload task）是否缓存response;
+ 
+ 函数讨论：
+ 当task接收到所有期望的数据后，session会调用此代理方法。如果你没有实现该方法，那么就会使用创建session时使用的configuration对象决定缓存策略。这个代理方法最初的目的是为了阻止缓存特定的URLs或者修改NSCacheURLResponse对象相关的userInfo字典。
+ 
+ 该方法只会当request决定缓存response时候调用。作为准则，responses只会当以下条件都成立的时候返回缓存：
+ 1.该request是HTTP或HTTPS URL的请求（或者你自定义的网络协议，并且确保该协议支持缓存）
+ 2.确保request请求是成功的（返回的status code为200-299）
+ 3.返回的response是来自服务器端的，而非缓存中本身就有的
+ 4.提供的NSURLRequest对象的缓存策略要允许进行缓存
+ 5.服务器返回的response中与缓存相关的header要允许缓存
+ 6.该response的大小不能比提供的缓存空间大太多
+  （比如你提供了一个磁盘缓存，那么response大小一定不能比磁盘缓存空间还要大5%）
+
+ */
 - (void)URLSession:(NSURLSession *)session
           dataTask:(NSURLSessionDataTask *)dataTask
  willCacheResponse:(NSCachedURLResponse *)proposedResponse
@@ -1284,19 +1402,31 @@ didBecomeDownloadTask:(NSURLSessionDownloadTask *)downloadTask
 }
 #endif
 
-#pragma mark  NSURLSessionDownloadDelegate
+#pragma mark  代理-NSURLSessionDownloadDelegate
 
+/**
+ 函数作用：下载完成的时候调用;
+ 
+ 这个方法和之前的两个方法：
+ - (void)URLSession:(NSURLSession *)session task:(NSURLSessionTask *)taskdidCompleteWithError:(NSError *)error;
+ - (void)URLSession:(NSURLSession *)session dataTask:(NSURLSessionDataTask *)dataTask didReceiveData:(NSData *)data;
+ 
+ 总共就这3个方法，被转调到AF自定义delegate中。
+*/
 - (void)URLSession:(NSURLSession *)session
       downloadTask:(NSURLSessionDownloadTask *)downloadTask
 didFinishDownloadingToURL:(NSURL *)location
 {
     AFURLSessionManagerTaskDelegate *delegate = [self delegateForTask:downloadTask];
+    
+    //这个是session的，也就是全局的，后面的个人代理也会做同样的这件事
     if (self.downloadTaskDidFinishDownloading) {
+        //调用自定义的block拿到文件存储的地址
         NSURL *fileURL = self.downloadTaskDidFinishDownloading(session, downloadTask, location);
         if (fileURL) {
             delegate.downloadFileURL = fileURL;
             NSError *error = nil;
-            
+            //从临时的下载路径移动至我们需要的路径
             if (![[NSFileManager defaultManager] moveItemAtURL:location toURL:fileURL error:&error]) {
                 [[NSNotificationCenter defaultCenter] postNotificationName:AFURLSessionDownloadTaskDidFailToMoveFileNotification object:downloadTask userInfo:error.userInfo];
             }
@@ -1310,6 +1440,15 @@ didFinishDownloadingToURL:(NSURL *)location
     }
 }
 
+/**
+ 函数作用：
+ 周期性地通知下载进度调用；
+ 
+ 简单说一下这几个参数:
+ bytesWritten 表示自上次调用该方法后，接收到的数据字节数
+ totalBytesWritten表示目前已经接收到的数据字节数
+ totalBytesExpectedToWrite 表示期望收到的文件总字节数，是由Content-Length header提供。如果没有提供，默认是NSURLSessionTransferSizeUnknown。
+ */
 - (void)URLSession:(NSURLSession *)session
       downloadTask:(NSURLSessionDownloadTask *)downloadTask
       didWriteData:(int64_t)bytesWritten
@@ -1328,6 +1467,19 @@ totalBytesExpectedToWrite:(int64_t)totalBytesExpectedToWrite
     }
 }
 
+/**
+ 函数作用：
+ 当下载被取消或者失败后重新恢复下载时调用；
+ 
+ 函数讨论：
+ 如果一个正在下载任务被取消或者失败了，你可以请求一个resumeData对象（比如在userInfo字典中通过NSURLSessionDownloadTaskResumeData这个键来获取到resumeData）并使用它来提供足够的信息以重新开始下载任务。
+ 随后，你可以使用resumeData作为downloadTaskWithResumeData:或downloadTaskWithResumeData:completionHandler:的参数。当你调用这些方法时，你将开始一个新的下载任务。一旦你继续下载任务，session会调用它的代理方法URLSession:downloadTask:didResumeAtOffset:expectedTotalBytes:其中的downloadTask参数表示的就是新的下载任务，这也意味着下载重新开始了。
+ 
+ 总结一下：
+ 其实这个就是用来做断点续传的代理方法。可以在下载失败的时候，拿到我们失败的拼接的部分resumeData，然后用去调用downloadTaskWithResumeData：就会调用到这个代理方法来了。
+ 其中注意：fileOffset这个参数，如果文件缓存策略或者最后文件更新日期阻止重用已经存在的文件内容，那么该值为0。否则，该值表示当前已经下载data的偏移量。
+ 方法中仅仅调用了downloadTaskDidResume自定义Block。
+ */
 - (void)URLSession:(NSURLSession *)session
       downloadTask:(NSURLSessionDownloadTask *)downloadTask
  didResumeAtOffset:(int64_t)fileOffset
