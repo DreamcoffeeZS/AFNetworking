@@ -415,24 +415,70 @@ static NSString * const AFNSURLSessionTaskDidSuspendNotification = @"com.alamofi
             6) Grab a pointer for the super class to the current implementation of `resume`.
             7) If the current class implementation of `resume` is not equal to the super class implementation of `resume` AND the current implementation of `resume` is not equal to the original implementation of `af_resume`, THEN swizzle the methods
             8) Set the current class to the super class, and repeat steps 3-8
-         */
+         
+        iOS 7和iOS 8在NSURLSessionTask实现上有些许不同，这使得下面的代码实现略显棘手。
+        关于这个问题，大家做了很多Unit Test，足以证明这个方法是可行的。
+        
+        目前我们所知的：
+        * NSURLSessionTasks是通过类簇设计模式实现的，如果你仅仅使用提供的API来获取NSURLSessionTask的class，
+        并不一定返回的是你想要的那个（获取NSURLSessionTask的class目的是为了获取其resume方法）
+        
+        *简单地使用[NSURLSessionTask class]并不起作用。你需要新建一个NSURLSession，并根据创建的session
+        再构建出一个NSURLSessionTask对象才行。
+        
+        *iOS 7上，localDataTask（下面代码构造出的NSURLSessionDataTask类型的变量，为了获取对应Class）
+        的类型是 __NSCFLocalDataTask类型，然后它的继承关系是：
+         __NSCFLocalDataTask  -> __NSCFLocalSessionTask -> __NSCFURLSessionTask
+        
+        *iOS 8上，localDataTask的类型为__NSCFLocalDataTask，然后它的继承关系是：
+         __NSCFLocalDataTask  -> __NSCFLocalSessionTask -> NSURLSessionTask
+        
+        *iOS 7上，__NSCFLocalSessionTask和__NSCFURLSessionTask是仅有的两个实现了resume和suspend
+        方法的类，另外__NSCFLocalSessionTask中的resume和suspend并没有调用其父类
+        （即__NSCFURLSessionTask）方法，这也意味着两个类的方法都需要进行method swizzling。
+        
+        *iOS 8上，NSURLSessionTask是唯一实现了resume和suspend方法的类。这也意味着其是唯一需要进行method swizzling的类
+        
+        *因为NSURLSessionTask并不是在每个iOS版本中都存在，所以把这些放在此处（即load函数中），
+        比如给一个dummy class添加swizzled方法都会变得很方便，管理起来也方便。
+         
+         
+         一些假设的前提：
+         * 目前iOS中resume和suspend的方法实现中并没有调用对应的父类方法。如果日后iOS改变了这种做法，
+         我们还需要重新处理。
+         * 没有哪个后台task会重写resume和suspend函数
+         
+         剩余的注释在代码中...
+         
+        */
+    
+        //1.首先构建一个NSURLSession对象session，再通过session构建出一个_NSCFLocalDataTask变量
         NSURLSessionConfiguration *configuration = [NSURLSessionConfiguration ephemeralSessionConfiguration];
         NSURLSession *session = [NSURLSession sessionWithConfiguration:configuration];
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wnonnull"
         NSURLSessionDataTask *localDataTask = [session dataTaskWithURL:nil];
 #pragma clang diagnostic pop
+        //2.获取af_resume实现的指针
         IMP originalAFResumeIMP = method_getImplementation(class_getInstanceMethod([self class], @selector(af_resume)));
         Class currentClass = [localDataTask class];
         
+        //3.检查当前的class是否实现resume，如果实现了，继续第4步
         while (class_getInstanceMethod(currentClass, @selector(resume))) {
+            //4.获取当前class的父类(superClass)
             Class superClass = [currentClass superclass];
+            //5.获取当前class对于resume实现的指针
             IMP classResumeIMP = method_getImplementation(class_getInstanceMethod(currentClass, @selector(resume)));
+            //6.获取父类对于resume实现的指针
             IMP superclassResumeIMP = method_getImplementation(class_getInstanceMethod(superClass, @selector(resume)));
+            //7.如果当前class对于resume的实现和父类不一样（类似iOS7上的情况），
+            //并且当前class的resume实现和af_resume不一样，才进行method swizzling。
             if (classResumeIMP != superclassResumeIMP &&
                 originalAFResumeIMP != classResumeIMP) {
+                //执行交换的函数
                 [self swizzleResumeAndSuspendMethodForClass:currentClass];
             }
+            //8.设置当前操作的class为其父类class，重复步骤3~8
             currentClass = [currentClass superclass];
         }
         
@@ -459,6 +505,7 @@ static NSString * const AFNSURLSessionTaskDidSuspendNotification = @"com.alamofi
     return NSURLSessionTaskStateCanceling;
 }
 
+//被替换掉的方法，只要有TASK开启或者暂停，都会执行
 - (void)af_resume {
     NSAssert([self respondsToSelector:@selector(state)], @"Does not respond to state");
     NSURLSessionTaskState state = [self state];
