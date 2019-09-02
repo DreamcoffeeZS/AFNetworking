@@ -210,14 +210,28 @@ typedef void (^AFURLSessionTaskCompletionHandler)(NSURLResponse *response, id re
 
 #pragma mark - NSURLSessionTaskDelegate
 
+/**
+ 这个方法是NSURLSession任务完成的代理方法中，主动调用过来的；这个方法大概做了以下几件事：
+
+ 1.生成了一个存储这个task相关信息的字典：userInfo，这个字典是用来作为发送任务完成的通知的参数。
+ 2.判断了参数error的值，来区分请求成功还是失败。
+ 3.如果成功则在一个AF的并行queue中，去做数据解析等后续操作：
+ 
+ 注意AF的优化的点，虽然代理回调是串行的(不明白可以见本文最后)。但是数据解析这种费时操作，确是用并行线程来做的。
+ 
+ 然后根据我们一开始设置的responseSerializer来解析data。如果解析成功，调用成功的回调，否则调用失败的回调。
+ 我们重点来看看返回数据解析这行：
+ */
 - (void)URLSession:(__unused NSURLSession *)session
               task:(NSURLSessionTask *)task
 didCompleteWithError:(NSError *)error
 {
+    //强引用self.manager，防止被提前释放；因为self.manager声明为weak,类似Block
     __strong AFURLSessionManager *manager = self.manager;
 
     __block id responseObject = nil;
 
+    //首先准备一个字典userInfo，用于存储complete后的信息，以便于发送通知用
     __block NSMutableDictionary *userInfo = [NSMutableDictionary dictionary];
     userInfo[AFNetworkingTaskDidCompleteResponseSerializerKey] = manager.responseSerializer;
 
@@ -226,6 +240,7 @@ didCompleteWithError:(NSError *)error
     if (self.mutableData) {
         data = [self.mutableData copy];
         //We no longer need the reference, so nil it out to gain back some memory.
+        //注意这行代码的用法，感觉写的很Nice...把请求到的数据data传出去，然后就不要这个值了释放内存
         self.mutableData = nil;
     }
 
@@ -236,7 +251,7 @@ didCompleteWithError:(NSError *)error
         }
     }
 #endif
-
+    //继续给userinfo填数据：下载文件的URL、下载的数据
     if (self.downloadFileURL) {
         userInfo[AFNetworkingTaskDidCompleteAssetPathKey] = self.downloadFileURL;
     } else if (data) {
@@ -245,38 +260,52 @@ didCompleteWithError:(NSError *)error
 
     if (error) {
         userInfo[AFNetworkingTaskDidCompleteErrorKey] = error;
-
+        //如果有自定义的完成组 就使用自定义完成的queue,完成回调
         dispatch_group_async(manager.completionGroup ?: url_session_manager_completion_group(), manager.completionQueue ?: dispatch_get_main_queue(), ^{
             if (self.completionHandler) {
                 self.completionHandler(task.response, responseObject, error);
             }
-
+             //主线程中发送完成通知
             dispatch_async(dispatch_get_main_queue(), ^{
                 [[NSNotificationCenter defaultCenter] postNotificationName:AFNetworkingTaskDidCompleteNotification object:task userInfo:userInfo];
             });
         });
     } else {
+        /**url_session_manager_processing_queue是AF的并行队列
+        注意AF的优化的点，虽然代理回调是串行的，但是数据解析这种费时操作，确实用并行线程来做的。
+        */
         dispatch_async(url_session_manager_processing_queue(), ^{
             NSError *serializationError = nil;
+            /**
+             解析数据，使用我们一开始设置的responSerialization来解析Data
+             点进去这个方法，可以发现这是个协议方法，各种类型的responseSerialization类
+             都遵循协议方法，实现了一个把我们请求到的data转换为我们需要的类型的数据的方法；
+            */
             responseObject = [manager.responseSerializer responseObjectForResponse:task.response data:data error:&serializationError];
 
+            //如果是下载文件，那么responseObject为下载的路径
             if (self.downloadFileURL) {
                 responseObject = self.downloadFileURL;
             }
 
+             //写入userInfo
             if (responseObject) {
                 userInfo[AFNetworkingTaskDidCompleteSerializedResponseKey] = responseObject;
             }
 
+             //如果解析错误
             if (serializationError) {
                 userInfo[AFNetworkingTaskDidCompleteErrorKey] = serializationError;
             }
-
+            
+            //回调结果：可选择自定义了GCD完成组completionGroup和在其他线程队列执行回调
             dispatch_group_async(manager.completionGroup ?: url_session_manager_completion_group(), manager.completionQueue ?: dispatch_get_main_queue(), ^{
                 if (self.completionHandler) {
                     self.completionHandler(task.response, responseObject, serializationError);
                 }
 
+                //回到主线程，发送了任务完成的通知
+                //这个通知在我们对UIKit的扩展中被使用；
                 dispatch_async(dispatch_get_main_queue(), ^{
                     [[NSNotificationCenter defaultCenter] postNotificationName:AFNetworkingTaskDidCompleteNotification object:task userInfo:userInfo];
                 });
@@ -294,7 +323,10 @@ didFinishCollectingMetrics:(NSURLSessionTaskMetrics *)metrics {
 #endif
 
 #pragma mark - NSURLSessionDataDelegate
-
+/**
+ 这个方法是NSURLSession接收到数据的代理方法中，主动调用过来的；
+ 方法作用：拼接了需要回调的数据；
+ */
 - (void)URLSession:(__unused NSURLSession *)session
           dataTask:(__unused NSURLSessionDataTask *)dataTask
     didReceiveData:(NSData *)data
@@ -333,6 +365,15 @@ expectedTotalBytes:(int64_t)expectedTotalBytes{
     self.downloadProgress.completedUnitCount = fileOffset;
 }
 
+
+/**
+ 这个方法是下载成功了被NSUrlSession代理转发到这里，这里有个地方需要注意下：
+ 之前的NSUrlSession代理和这里都移动了文件到下载路径，而NSUrlSession代理的下载路径是所有request公用的下载路径，
+ 一旦设置，所有的request都会下载到之前那个路径。
+ 而这个是对应的每个task的，每个task可以设置各自下载路径
+ 
+ 还记得AFHttpManager的download方法么？其中return的path就是对应的这个代理方法的path
+ */
 - (void)URLSession:(NSURLSession *)session
       downloadTask:(NSURLSessionDownloadTask *)downloadTask
 didFinishDownloadingToURL:(NSURL *)location
@@ -340,10 +381,11 @@ didFinishDownloadingToURL:(NSURL *)location
     self.downloadFileURL = nil;
 
     if (self.downloadTaskDidFinishDownloading) {
+        //得到自定义下载路径
         self.downloadFileURL = self.downloadTaskDidFinishDownloading(session, downloadTask, location);
         if (self.downloadFileURL) {
             NSError *fileManagerError = nil;
-
+            //把下载路径移动到我们自定义的下载路径
             if (![[NSFileManager defaultManager] moveItemAtURL:location toURL:self.downloadFileURL error:&fileManagerError]) {
                 [[NSNotificationCenter defaultCenter] postNotificationName:AFURLSessionDownloadTaskDidFailToMoveFileNotification object:downloadTask userInfo:fileManagerError.userInfo];
             }
@@ -738,7 +780,10 @@ static NSString * const AFNSURLSessionTaskDidSuspendNotification = @"com.alamofi
     delegate.completionHandler = completionHandler;
 
     if (destination) {
+        //有点绕，就是把一个block赋值给我们代理的downloadTaskDidFinishDownloading，
+        //这个Block里的内部返回也是调用Block去获取到的，这里面的参数都是AF代理传过去的。
         delegate.downloadTaskDidFinishDownloading = ^NSURL * (NSURLSession * __unused session, NSURLSessionDownloadTask *task, NSURL *location) {
+            //把Block返回的地址返回
             return destination(location, task.response);
         };
     }
