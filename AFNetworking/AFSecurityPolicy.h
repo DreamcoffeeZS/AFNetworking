@@ -23,9 +23,9 @@
 #import <Security/Security.h>
 
 typedef NS_ENUM(NSUInteger, AFSSLPinningMode) {
-    AFSSLPinningModeNone,
-    AFSSLPinningModePublicKey,
-    AFSSLPinningModeCertificate,
+    AFSSLPinningModeNone,        //不验证
+    AFSSLPinningModePublicKey,   //只验证公钥
+    AFSSLPinningModeCertificate, //验证证书
 };
 
 /**
@@ -39,11 +39,13 @@ NS_ASSUME_NONNULL_BEGIN
 @interface AFSecurityPolicy : NSObject <NSSecureCoding, NSCopying>
 
 /**
+ //https验证模式
  The criteria by which server trust should be evaluated against the pinned SSL certificates. Defaults to `AFSSLPinningModeNone`.
  */
 @property (readonly, nonatomic, assign) AFSSLPinningMode SSLPinningMode;
 
 /**
+ //可以去匹配服务端证书验证的证书
  The certificates used to evaluate server trust according to the SSL pinning mode. 
 
   By default, this property is set to any (`.cer`) certificates included in the target compiling AFNetworking. Note that if you are using AFNetworking as embedded framework, no certificates will be pinned by default. Use `certificatesInBundle` to load certificates from your target, and then create a new policy by calling `policyWithPinningMode:withPinnedCertificates`.
@@ -53,11 +55,13 @@ NS_ASSUME_NONNULL_BEGIN
 @property (nonatomic, strong, nullable) NSSet <NSData *> *pinnedCertificates;
 
 /**
+ //是否支持非法的证书（例如自签名证书）
  Whether or not to trust servers with an invalid or expired SSL certificates. Defaults to `NO`.
  */
 @property (nonatomic, assign) BOOL allowInvalidCertificates;
 
 /**
+ //是否去验证证书域名是否匹配
  Whether or not to validate the domain name in the certificate's CN field. Defaults to `YES`.
  */
 @property (nonatomic, assign) BOOL validatesDomainName;

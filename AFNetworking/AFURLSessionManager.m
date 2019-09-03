@@ -1146,6 +1146,17 @@ didBecomeInvalidWithError:(NSError *)error
  2.Session使用SSL/TLS协议，首次与服务器端建立连接，服务器端发给客户端证书；
  此方法允许你的App验证服务器端的证书链(certificate keychain);
  
+接受Challenge的类型：
+//1.使用指定证书，可能为nil;
+NSURLSessionAuthChallengeUseCredential = 0,
+//2.默认处理，若未实现此代理，则忽略凭据参数；
+NSURLSessionAuthChallengePerformDefaultHandling = 1,
+//3.整个请求将被取消，凭据参数将被忽略;
+NSURLSessionAuthChallengeCancelAuthenticationChallenge = 2,
+//4.此挑战被拒绝，并应尝试下一个身份验证保护空间，凭据参数被忽略;
+NSURLSessionAuthChallengeRejectProtectionSpace = 3,
+
+ 
  处理过程：
  1.Web服务器收到客户端请求时，需要验证客户端是否为正常用户，再决定能够返回真实的数据；
  即客户端接收到服务器的challenge。
@@ -1154,48 +1165,52 @@ didBecomeInvalidWithError:(NSError *)error
  4.最后调用completionHandler回应服务器端的challenge;
  
 
+ securityPolicy存在的作用就是：
+ 在系统底层自己去验证之前，AF可以先去验证服务端的证书。如果通不过，则直接越过系统的验证，取消https的网络请求。
+ 否则，继续去走系统根证书的验证；
+ evaluateServerTrust:forDomain:传入两个关键参数
+ 
  注：如果你没有实现该方法，该session会调用其NSURLSessionTaskDelegate的代理方法
  URLSession:task:didReceiveChallenge:completionHandler:；
- 该session会调用其NSURLSessionTaskDelegate的代理方法URLSession:task:didReceiveChallenge:completionHandler:
  
  */
 - (void)URLSession:(NSURLSession *)session
 didReceiveChallenge:(NSURLAuthenticationChallenge *)challenge
  completionHandler:(void (^)(NSURLSessionAuthChallengeDisposition disposition, NSURLCredential *credential))completionHandler
 {
-    //挑战处理类型为 默认
-    /*
-     NSURLSessionAuthChallengePerformDefaultHandling：默认方式处理
-     NSURLSessionAuthChallengeUseCredential：使用指定的证书
-     NSURLSessionAuthChallengeCancelAuthenticationChallenge：取消挑战
-     */
     NSURLSessionAuthChallengeDisposition disposition = NSURLSessionAuthChallengePerformDefaultHandling;
     __block NSURLCredential *credential = nil;
 
     if (self.sessionDidReceiveAuthenticationChallenge) {
+        //1.使用自定义方法，应对服务器的端的认证挑战，并且可以给credential赋值
         disposition = self.sessionDidReceiveAuthenticationChallenge(session, challenge, &credential);
     } else {
-        /*此处服务器要求客户端的接收认证挑战方法是NSURLAuthenticationMethodServerTrust
-         也就是说服务器端需要客户端返回一个根据认证挑战的保护空间提供的信任
-         （即challenge.protectionSpace.serverTrust）产生的挑战证书。
-         */
+        //2.由AF来处理服务器端的认证挑战,这里是AF默认的单向认证，其他认证需要通过自定义Block实现；
+        //2.1从服务器端返回的受保护空间中获取证书类型，判断为NSURLAuthenticationMethodServerTrust
         if ([challenge.protectionSpace.authenticationMethod isEqualToString:NSURLAuthenticationMethodServerTrust]) {
             if ([self.securityPolicy evaluateServerTrust:challenge.protectionSpace.serverTrust forDomain:challenge.protectionSpace.host]) {
-                //基于客户端的安全策略来决定是否信任该服务器，不信任的话，也就没必要响应挑战
+                //2.2.基于客户端的安全策略来决定是否信任该服务器，不信任的话，也就没必要响应挑战
+                //2.3.使用服务器端返回的受保护空间，创建一个证书
+                //注意：serverTrust里包含了服务器证书信息，提供客户端验证证书的合法性
                 credential = [NSURLCredential credentialForTrust:challenge.protectionSpace.serverTrust];
+                //2.4.disposition:如何处理证书的方式
                 if (credential) {
                     disposition = NSURLSessionAuthChallengeUseCredential;
                 } else {
+                    //默认Challenge
                     disposition = NSURLSessionAuthChallengePerformDefaultHandling;
                 }
             } else {
+                //securityPolicy内部认证失败，取消HTTPS认证
                 disposition = NSURLSessionAuthChallengeCancelAuthenticationChallenge;
             }
         } else {
+            //2.2默认Challenge
             disposition = NSURLSessionAuthChallengePerformDefaultHandling;
         }
     }
-
+    
+    //完成Challenge
     if (completionHandler) {
         completionHandler(disposition, credential);
     }
