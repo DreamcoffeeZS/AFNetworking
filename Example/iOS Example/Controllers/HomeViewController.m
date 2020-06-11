@@ -7,6 +7,8 @@
 //
 
 #import "HomeViewController.h"
+#import "NSDictionary+LogHelper.h"
+
 @import AFNetworking;
 
 @interface HomeViewController ()
@@ -57,6 +59,7 @@
 
 - (void)requestWithAFMethod {
     AFHTTPSessionManager *manager = [[AFHTTPSessionManager alloc] init];
+    
     NSString *urlString = @"https://api.apiopen.top/getTangPoetry?page=1&count=20";
     NSDictionary *params = @{@"name" : @"bang",
                              @"phone": @{@"mobile": @"xx", @"home": @"xx"},
