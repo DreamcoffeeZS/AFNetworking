@@ -1197,9 +1197,11 @@ willPerformHTTPRedirection:(NSHTTPURLResponse *)response
 - (void)URLSession:(NSURLSession *)session
               task:(NSURLSessionTask *)task
 didReceiveChallenge:(NSURLAuthenticationChallenge *)challenge
- completionHandler:(void (^)(NSURLSessionAuthChallengeDisposition disposition, NSURLCredential *credential))completionHandler
+ completionHandler:(void (^)(NSURLSessionAuthChallengeDisposition disposition,
+                             NSURLCredential *credential))completionHandler
 {
     BOOL evaluateServerTrust = NO;
+    //默认的挑战方式
     NSURLSessionAuthChallengeDisposition disposition = NSURLSessionAuthChallengePerformDefaultHandling;
     NSURLCredential *credential = nil;
 
@@ -1224,14 +1226,20 @@ didReceiveChallenge:(NSURLAuthenticationChallenge *)challenge
         evaluateServerTrust = [challenge.protectionSpace.authenticationMethod isEqualToString:NSURLAuthenticationMethodServerTrust];
     }
 
+    // 此处服务器要求客户端的接收认证挑战方法是NSURLAuthenticationMethodServerTrust
+    // 也就是说服务器端需要客户端返回一个根据认证挑战的保护空间提供的信任
+    //（即challenge.protectionSpace.serverTrust）产生的挑战证书。
     if (evaluateServerTrust) {
+         // 基于客户端的安全策略来决定是否信任该服务器，不信任的话，也就没必要响应挑战
         if ([self.securityPolicy evaluateServerTrust:challenge.protectionSpace.serverTrust forDomain:challenge.protectionSpace.host]) {
             disposition = NSURLSessionAuthChallengeUseCredential;
+             //创建挑战证书（注：挑战方式为UseCredential和PerformDefaultHandling都需要新建挑战证书）
             credential = [NSURLCredential credentialForTrust:challenge.protectionSpace.serverTrust];
         } else {
             objc_setAssociatedObject(task, AuthenticationChallengeErrorKey,
                                      [self serverTrustErrorForServerTrust:challenge.protectionSpace.serverTrust url:task.currentRequest.URL],
                                      OBJC_ASSOCIATION_RETAIN);
+            //取消挑战
             disposition = NSURLSessionAuthChallengeCancelAuthenticationChallenge;
         }
     }

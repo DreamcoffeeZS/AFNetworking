@@ -392,8 +392,11 @@ AFSecurityPolicy最核心的方法，其他的都是为了配合这个方法，�
     //有验证策略了，可以去验证了。如果是AFSSLPinningModeNone，是自签名，直接返回可信任，
     //否则不是自签名的就去系统根证书里去找是否有匹配的证书。
     if (self.SSLPinningMode == AFSSLPinningModeNone) {
+         //如果支持自签名，直接返回YES,不允许才去判断第二个条件，判断serverTrust是否有效
         return self.allowInvalidCertificates || AFServerTrustIsValid(serverTrust);
-    } else if (!self.allowInvalidCertificates && !AFServerTrustIsValid(serverTrust)) {
+    }
+    //如果验证无效AFServerTrustIsValid，而且allowInvalidCertificates不允许自签，返回NO
+    else if (!self.allowInvalidCertificates && !AFServerTrustIsValid(serverTrust)) {
         return NO;
     }
 
