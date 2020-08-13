@@ -83,30 +83,29 @@
     
     //AFSSLPinningModeCertificate表示使用自签名证书
     AFSecurityPolicy *policy = [AFSecurityPolicy policyWithPinningMode:AFSSLPinningModeCertificate];
-    //为了测试方便不验证域名，若要验证域名，则请求时的域名要和创建证书（创建证书的脚本执行时可指定域名）时的域名一致
+    //为了测试方便不验证域名
+    //若要验证域名，则请求时的域名要和创建证书（创建证书的脚本执行时可指定域名）时的域名一致
     policy.validatesDomainName = YES;
     //自签名服务器证书需要设置allowInvalidCertificates为YES
     policy.allowInvalidCertificates = YES;
     //指定本地证书路径
     policy.pinnedCertificates = [AFSecurityPolicy certificatesInBundle:[NSBundle mainBundle]];
     manager.securityPolicy = policy;
-    
+    manager.responseSerializer = [AFHTTPResponseSerializer serializer];
+
     //访问本地建议HTTPS服务器
-    [manager GET:@"https://localhost:443/"  parameters:nil
+    [manager GET:@"https://localhost:443"  parameters:nil
          headers:nil
         progress:nil
          success:^(NSURLSessionDataTask * _Nonnull task, id  _Nullable responseObject) {
-        
-        NSLog(@"AF—HTTPS-success-response = [%@]", [[NSString alloc] initWithData:responseObject encoding:NSUTF8StringEncoding]);
+        NSLog(@"AF—HTTPS-Success!:");
+        NSLog(@"response = %@", [[NSString alloc] initWithData:responseObject encoding:NSUTF8StringEncoding]);
         
     } failure:^(NSURLSessionDataTask * _Nullable task, NSError * _Nonnull error) {
-        NSLog(@"AF—HTTPS-Fail");
+        NSLog(@"AF—HTTPS-Fail!:");
+        NSLog(@"%@",error.description);
     }];
 }
-
-
-
-
 
 #pragma mark - Setter Method
 
