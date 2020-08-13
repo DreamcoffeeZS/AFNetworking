@@ -43,6 +43,7 @@
 		29E6F1FA1BB9E56500A4466C /* User.m in Sources */ = {isa = PBXBuildFile; fileRef = 29E6F19C1BB9DD7300A4466C /* User.m */; };
 		C2BFE0251C11870800BB258D /* AppDelegate.m in Sources */ = {isa = PBXBuildFile; fileRef = C2BFE0241C11870800BB258D /* AppDelegate.m */; };
 		C2BFE0281C11872D00BB258D /* AppDelegate.m in Sources */ = {isa = PBXBuildFile; fileRef = C2BFE0271C11872D00BB258D /* AppDelegate.m */; };
+		E90C9CAA24E558BA001FD06E /* ca.cer in Resources */ = {isa = PBXBuildFile; fileRef = E90C9CA924E558BA001FD06E /* ca.cer */; };
 		E96BFD912285767A00700134 /* HomeViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = E96BFD902285767A00700134 /* HomeViewController.m */; };
 		E983329924922D55006AE24A /* NSDictionary+LogHelper.m in Sources */ = {isa = PBXBuildFile; fileRef = E983329824922D55006AE24A /* NSDictionary+LogHelper.m */; };
 		E9DE8DDC229258450000C93E /* HomeViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = E96BFD902285767A00700134 /* HomeViewController.m */; };
@@ -160,6 +161,7 @@
 		C2BFE0241C11870800BB258D /* AppDelegate.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = AppDelegate.m; sourceTree = "<group>"; };
 		C2BFE0261C11872D00BB258D /* AppDelegate.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = AppDelegate.h; sourceTree = "<group>"; };
 		C2BFE0271C11872D00BB258D /* AppDelegate.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = AppDelegate.m; sourceTree = "<group>"; };
+		E90C9CA924E558BA001FD06E /* ca.cer */ = {isa = PBXFileReference; lastKnownFileType = file; path = ca.cer; sourceTree = "<group>"; };
 		E96BFD8F2285767A00700134 /* HomeViewController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = HomeViewController.h; sourceTree = "<group>"; };
 		E96BFD902285767A00700134 /* HomeViewController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = HomeViewController.m; sourceTree = "<group>"; };
 		E983329724922D55006AE24A /* NSDictionary+LogHelper.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "NSDictionary+LogHelper.h"; sourceTree = "<group>"; };
@@ -303,6 +305,7 @@
 		29E6F1771BB9DCB500A4466C /* iOS Example */ = {
 			isa = PBXGroup;
 			children = (
+				E90C9C9E24E5326A001FD06E /* cerFiles */,
 				C2BFE0261C11872D00BB258D /* AppDelegate.h */,
 				C2BFE0271C11872D00BB258D /* AppDelegate.m */,
 				291BFE071BB9EB3400FFB029 /* Controllers */,
@@ -393,6 +396,14 @@
 				29E6F2271BB9E76B00A4466C /* Info.plist */,
 			);
 			path = "watchOS Example Extension";
+			sourceTree = "<group>";
+		};
+		E90C9C9E24E5326A001FD06E /* cerFiles */ = {
+			isa = PBXGroup;
+			children = (
+				E90C9CA924E558BA001FD06E /* ca.cer */,
+			);
+			path = cerFiles;
 			sourceTree = "<group>";
 		};
 		E983329624922D04006AE24A /* Common */ = {
@@ -605,6 +616,7 @@
 			files = (
 				29E6F1AC1BB9DDB600A4466C /* Assets.xcassets in Resources */,
 				29E6F1E11BB9E03600A4466C /* Launchscreen.storyboard in Resources */,
+				E90C9CAA24E558BA001FD06E /* ca.cer in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

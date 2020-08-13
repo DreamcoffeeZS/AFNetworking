@@ -30,9 +30,10 @@
 
 #pragma mark - Respond To Events
 - (void)onBtnClick:(UIButton *)btn {
-    //[[self requestWithSystemMethod];
-    [self requestWithAFMethod];
- }
+    //    [[self requestWithSystemMethod];
+    //    [self requestWithAFMethod];
+    [self requestWithAFHTTPSMethod];
+}
 
 
 - (void)requestWithSystemMethod {
@@ -60,12 +61,12 @@
 - (void)requestWithAFMethod {
     AFHTTPSessionManager *manager = [[AFHTTPSessionManager alloc] init];
     
-    NSString *urlString = @"https://api.apiopen.top/getTangPoetry?page=1&count=20";
-    NSDictionary *params = @{@"name" : @"bang",
-                             @"phone": @{@"mobile": @"xx", @"home": @"xx"},
-                             @"families": @[@"father", @"mother"],
-                             @"nums": [NSSet setWithObjects:@"1", @"2", nil]
-                             };
+    NSString *urlString = @"http://php.weather.sina.com.cn/iframe/index/w_cl.php";
+    NSDictionary *params = @{@"code": @"js",
+                             @"dat": @"0",
+                             @"dfc":@"1",
+                             @"charset":@"utf-8"
+    };
     [manager GET:urlString parameters:params headers:nil progress:^(NSProgress * _Nonnull downloadProgress) {
         //
     } success:^(NSURLSessionDataTask * _Nonnull task, id  _Nullable responseObject) {
@@ -73,7 +74,38 @@
     } failure:^(NSURLSessionDataTask * _Nullable task, NSError * _Nonnull error) {
         NSLog(@"Error: %@", error);
     }];
- }
+}
+
+
+- (void)requestWithAFHTTPSMethod {
+    //使用服务器自签名证书，需要指定baseUrl属性。
+    AFHTTPSessionManager *manager = [[AFHTTPSessionManager alloc] initWithBaseURL:[NSURL URLWithString:@"https://localhost:443"]];
+    
+    //AFSSLPinningModeCertificate表示使用自签名证书
+    AFSecurityPolicy *policy = [AFSecurityPolicy policyWithPinningMode:AFSSLPinningModeCertificate];
+    //为了测试方便不验证域名，若要验证域名，则请求时的域名要和创建证书（创建证书的脚本执行时可指定域名）时的域名一致
+    policy.validatesDomainName = YES;
+    //自签名服务器证书需要设置allowInvalidCertificates为YES
+    policy.allowInvalidCertificates = YES;
+    //指定本地证书路径
+    policy.pinnedCertificates = [AFSecurityPolicy certificatesInBundle:[NSBundle mainBundle]];
+    manager.securityPolicy = policy;
+    
+    //访问本地建议HTTPS服务器
+    [manager GET:@"https://localhost:443/"  parameters:nil
+         headers:nil
+        progress:nil
+         success:^(NSURLSessionDataTask * _Nonnull task, id  _Nullable responseObject) {
+        
+        NSLog(@"AF—HTTPS-success-response = [%@]", [[NSString alloc] initWithData:responseObject encoding:NSUTF8StringEncoding]);
+        
+    } failure:^(NSURLSessionDataTask * _Nullable task, NSError * _Nonnull error) {
+        NSLog(@"AF—HTTPS-Fail");
+    }];
+}
+
+
+
 
 
 #pragma mark - Setter Method

@@ -330,8 +330,8 @@ static NSArray * AFPublicKeyTrustChainForServerTrust(SecTrustRef serverTrust) {
 在系统底层自己去验证之前，AF可以先去验证服务端的证书。如果通不过，则直接越过系统的验证，取消https的网络请求。
 否则，继续去走系统根证书的验证
  
-SecTrustRef:用于执行X.509证书信任评估
-其实就是一个容器，装了服务器端需要验证的证书的基本信息、公钥等等，不仅如此，它还可以装一些评估策略，
+SecTrustRef：用于执行X.509证书信任评估
+其实就是一个容器，包含服务器端需要验证的证书的基本信息、公钥等等，不仅如此，它还可以装一些评估策略，
 还有客户端的锚点证书，这个客户端的证书，可以用来和服务端的证书去匹配验证的。
  
 AFSecurityPolicy最核心的方法，其他的都是为了配合这个方法，总结其作用：
@@ -355,9 +355,9 @@ AFSecurityPolicy最核心的方法，其他的都是为了配合这个方法，�
 - (BOOL)evaluateServerTrust:(SecTrustRef)serverTrust
                   forDomain:(NSString *)domain
 {
-    //判断矛盾的条件
-    //判断有域名，且允许自建证书(默认NO)，需要验证域名(默认YES)
-    //因为要验证域名，所以必须不能是后者两种：AFSSLPinningModeNone或者添加到项目里的证书为0个。
+    //判断矛盾的条件：
+    //1.判断有域名，支持自建证书(默认NO)，需要验证证书域名(默认YES)
+    //2.验证模式为AFSSLPinningModeNone、或者添加到项目里的证书为0个，与上面的条件矛盾；
     if (domain && self.allowInvalidCertificates && self.validatesDomainName && (self.SSLPinningMode == AFSSLPinningModeNone || [self.pinnedCertificates count] == 0)) {
         // https://developer.apple.com/library/mac/documentation/NetworkingInternet/Conceptual/NetworkingTopics/Articles/OverridingSSLChainValidationCorrectly.html
         //  According to the docs, you should only trust your provided certs for evaluation.
@@ -372,12 +372,10 @@ AFSecurityPolicy最核心的方法，其他的都是为了配合这个方法，�
         return NO;
     }
 
-    //用来装验证策略
     NSMutableArray *policies = [NSMutableArray array];
-    //验证域名
+    //如果需要验证证书域名是否匹配，需要使用SecPolicyCreateSSL函数创建验证策略
     if (self.validatesDomainName) {
-        //如果需要验证domain，那么就使用SecPolicyCreateSSL函数创建验证策略，
-        //其中第一个参数为true表示验证整个SSL证书链，第二个参数传入domain，
+        //参数为true：表示验证整个SSL证书链；参数domain为域名
         //用于判断整个证书链上叶子节点表示的那个domain是否和此处传入domain一致
         [policies addObject:(__bridge_transfer id)SecPolicyCreateSSL(true, (__bridge CFStringRef)domain)];
     } else {
@@ -385,14 +383,16 @@ AFSecurityPolicy最核心的方法，其他的都是为了配合这个方法，�
         [policies addObject:(__bridge_transfer id)SecPolicyCreateBasicX509()];
     }
 
-    //serverTrust：X。509服务器的证书信任。
     //为serverTrust设置验证策略，即告诉客户端如何验证serverTrust
     SecTrustSetPolicies(serverTrust, (__bridge CFArrayRef)policies);
 
-    //有验证策略了，可以去验证了。如果是AFSSLPinningModeNone，是自签名，直接返回可信任，
-    //否则不是自签名的就去系统根证书里去找是否有匹配的证书。
+    //有验证策略了，可以去验证了:
+    
+    
+    
+    //1.如果是AFSSLPinningModeNone，是自签名，直接返回可信任，否则不是自签名的就去系统根证书里去找是否有匹配的证书
     if (self.SSLPinningMode == AFSSLPinningModeNone) {
-         //如果支持自签名，直接返回YES,不允许才去判断第二个条件，判断serverTrust是否有效
+         //如果支持自签名，直接返回YES，不允许才去判断第二个条件，判断serverTrust是否有效
         return self.allowInvalidCertificates || AFServerTrustIsValid(serverTrust);
     }
     //如果验证无效AFServerTrustIsValid，而且allowInvalidCertificates不允许自签，返回NO
@@ -400,11 +400,12 @@ AFSecurityPolicy最核心的方法，其他的都是为了配合这个方法，�
         return NO;
     }
 
-    //判断SSLPinningMode
+    //根据SSLPinningMode，进行证书验证
     switch (self.SSLPinningMode) {
+        //2.以证书模式进行验证
         case AFSSLPinningModeCertificate: {
             NSMutableArray *pinnedCertificates = [NSMutableArray array];
-            //把证书data，用系统api转成 SecCertificateRef 类型的数据,
+            //把证书NSData，用系统api转成 SecCertificateRef 类型的数据,
             //SecCertificateCreateWithData函数对原先的pinnedCertificates做一些处理，
             //保证返回的证书都是DER编码的X.509证书
             for (NSData *certificateData in self.pinnedCertificates) {
@@ -438,7 +439,7 @@ AFSecurityPolicy最核心的方法，其他的都是为了配合这个方法，�
             
             return NO;
         }
-            //公钥验证 AFSSLPinningModePublicKey模式同样是用证书绑定
+            //3.公钥验证 AFSSLPinningModePublicKey模式同样是用证书绑定
             //(SSL Pinning)方式验证，客户端要有服务端的证书拷贝，只是验证时只验证证书里的公钥，
             //不验证证书的有效期等信息。只要公钥是正确的，就能保证通信不会被窃听，
             //因为中间人没有私钥，无法解开通过公钥加密的数据。
@@ -461,7 +462,7 @@ AFSecurityPolicy最核心的方法，其他的都是为了配合这个方法，�
         }
             
         default:
-            //理论上，上面那个部分已经解决了self.SSLPinningMode)为AFSSLPinningModeNone)等情况，
+            //理论上，上面那个部分已经解决了self.SSLPinningMode为AFSSLPinningModeNone等情况，
             //所以此处再遇到，就直接返回NO
             return NO;
     }
